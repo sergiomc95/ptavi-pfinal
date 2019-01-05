@@ -13,7 +13,7 @@ usage_error = 'usage: python3 uaclient.py <fichero> <metodo> <opcion>'
 
 register = 'REGISTER sip:username:serverport SIP/2.0\r\nExpires: opcion\r\n'
 
-digest = 'Authorization: Digest-Response="digest"\r\n'
+digest = 'Authorization: Digest response="digest"\r\n'
 
 invite = 'INVITE sip:opcion SIP/2.0\r\nContent-Type: application/sdp\r\n\r\nv=0\r\n'
 invite += 'o=username serverip\r\ns=nombresesion\r\nt=0\r\nm=audio puertortp RTP\r\n'
@@ -26,6 +26,7 @@ def metodo_register(socket, opcion):
     mess = register.replace('username', config['account_username'])
     mess = mess.replace('serverport', config['uaserver_puerto'])
     mess = mess.replace('opcion', opcion)
+    print('Enviando:\n' + mess)
     socket.send(bytes(mess, 'utf-8'))
 
 def metodo_register_con_digest(socket, opcion, response):
@@ -33,6 +34,7 @@ def metodo_register_con_digest(socket, opcion, response):
     mess = mess.replace('serverport', config['uaserver_puerto'])
     mess = mess.replace('opcion', opcion)
     mess += digest.replace('digest', response)
+    print('Enviando:\n' + mess)
     socket.send(bytes(mess, 'utf-8'))
 
 def metodo_invite(socket, opcion):
@@ -80,11 +82,13 @@ if __name__ == '__main__':
         if metodo.upper() == 'REGISTER':
             metodo_register(my_socket, opcion)
             respuesta = recibir_respuesta(my_socket)
+            print('Recibiendo:\n' + respuesta)
             if 'SIP/2.0 401 Unauthorized' in respuesta:
                 nonce = respuesta.split('\r\n')[1].split('"')[-2]
                 response = digest_response(nonce, config['account_passwd'])
                 metodo_register_con_digest(my_socket, opcion, response)
                 respuesta = recibir_respuesta(my_socket)
+                print('Recibiendo:\n' + respuesta)
         elif metodo.upper() == 'INVITE':
             metodo_invite(my_socket, opcion)
             respuesta = recibir_respuesta(my_socket)
