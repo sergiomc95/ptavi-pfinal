@@ -17,17 +17,21 @@ ok = 'SIP/2.0 200 OK\r\n'
 
 bad_request = 'SIP/2.0 400 Bad Request\r\n'
 
-unauthorized = 'SIP/2.0 401 Unauthorized\r\nWWW Authenticate: Digest nonce="digestnonce"\r\n'
+unauthorized = 'SIP/2.0 401 Unauthorized\r\n'
+unauthorized += 'WWW Authenticate: Digest nonce="digestnonce"\r\n'
 
 user_not_found = 'SIP/2.0 404 User Not Found\r\n'
 
 method_not_allowed = 'SIP/2.0 405 Method Not Allowed\r\n'
 
+
 def log_writer(mess, config):
+
     with open(config['log_path'], 'a') as log_file:
         now = time.gmtime(time.time() + 3600)
         date_now = time.strftime('%Y%m%d%H%M%S', now)
         log_file.write(date_now + ' ' + mess.replace('\r\n', ' ') + '\n')
+
 
 def digest_nonce(server_name, server_ip, server_port):
 
@@ -36,12 +40,14 @@ def digest_nonce(server_name, server_ip, server_port):
 
     return digest.hexdigest()
 
+
 def digest_response(nonce, passwd):
 
     digest = sha256()
     digest.update(bytes(nonce + passwd, 'utf-8'))
 
     return digest.hexdigest()
+
 
 class XMLHandler(ContentHandler):
 
@@ -65,6 +71,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     users = {}
     passwd = {}
     sesions = {}
+    formato = '%Y-%m-%d %H:%M:%S'
 
     def handle(self):
 
@@ -72,8 +79,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         self.expires_users()
 
         info = self.rfile.read().decode('utf-8')
-        log_mess = 'Received from ' + self.client_address[0] + ':' 
-        log_mess += str(self.client_address[1]) +': '
+        log_mess = 'Received from ' + self.client_address[0] + ':'
+        log_mess += str(self.client_address[1]) + ': '
         log_mess += info.replace('\r\n', ' ')
         log_writer(log_mess, config)
         metodo = info.split()[0]
@@ -97,8 +104,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 else:
                     del self.users[user]
                 self.wfile.write(bytes(ok, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += ok.replace('\r\n', ' ')
                 log_writer(log_mess, config)
                 print('Respondido: 200 OK')
@@ -113,37 +120,38 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     response = digest_response(nonce, passwd)
                     if user_response == response:
                         exp = int(info.split('\r\n')[1].split()[-1])
-                        user_port = info.split('\r\n')[0].split(':')[-1].split()[0]
+                        user_port = info.split('\r\n')[0].split(':')[-1]
+                        user_port = user_port.split()[0]
                         user_ip = self.client_address[0]
-                        expires_time = time.gmtime(time.time() + 3600 + exp)
-                        expires_date = time.strftime('%Y-%m-%d %H:%M:%S', expires_time)
+                        expires = time.gmtime(time.time() + 3600 + exp)
+                        expires_date = time.strftime(self.formato, expires)
                         self.users[user] = {'ip': user_ip,
                                             'puerto': user_port,
                                             'expires': expires_date}
                         self.wfile.write(bytes(ok, 'utf-8'))
-                        log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                        log_mess += str(self.client_address[1]) +': '
+                        log_mess = 'Sent to ' + self.client_address[0] + ':'
+                        log_mess += str(self.client_address[1]) + ': '
                         log_mess += ok.replace('\r\n', ' ')
                         log_writer(log_mess, config)
                         print('Respondido: 200 OK')
                     else:
                         self.wfile.write(bytes(bad_request, 'utf-8'))
-                        log_mess = 'Sent to ' +self.client_address[0] + ':' 
-                        log_mess += str(self.client_address[1]) +': '
+                        log_mess = 'Sent to ' + self.client_address[0] + ':'
+                        log_mess += str(self.client_address[1]) + ': '
                         log_mess += bad_request.replace('\r\n', ' ')
                         log_writer(log_mess, config)
                         print('Respondido: 400 Bad Request')
                 else:
                     mess = unauthorized.replace('digestnonce', nonce)
                     self.wfile.write(bytes(mess, 'utf-8'))
-                    log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                    log_mess += str(self.client_address[1]) +': '
+                    log_mess = 'Sent to ' + self.client_address[0] + ':'
+                    log_mess += str(self.client_address[1]) + ': '
                     log_mess += mess.replace('\r\n', ' ')
                     log_writer(log_mess, config)
                     print('Respondido: 401 Unauthorized')
         elif metodo == 'INVITE':
             # saca el usuario que envia el mensaje, y comprueba
-            # si esta registrado, si lo esta saca usuario destino 
+            # si esta registrado, si lo esta saca usuario destino
             # y mira si esta registrado, si ambos estan registrados,
             # reenvia el mensaje, si el usuario destino no esta
             # registrado, envia un 404 User Not Found, y si el
@@ -157,14 +165,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 if respuesta != '':
                     self.sesions[sesion_name] = [user_src, user_dst]
                 self.wfile.write(bytes(respuesta, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += respuesta.replace('\r\n', ' ')
                 log_writer(log_mess, config)
             else:
                 self.wfile.write(bytes(user_not_found, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += user_not_found.replace('\r\n', ' ')
                 log_writer(log_mess, config)
         elif metodo == 'ACK':
@@ -173,26 +181,26 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             if user_dst in self.users:
                 respuesta = self.reenviar(user_dst, info)
                 self.wfile.write(bytes(respuesta, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += respuesta.replace('\r\n', ' ')
                 log_writer(log_mess, config)
             else:
                 self.wfile.write(bytes(user_not_found, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += user_not_found.replace('\r\n', ' ')
                 log_writer(log_mess, config)
         elif metodo == 'BYE':
-            # igual que el invite, pero ademas comprueba que los 
+            # igual que el invite, pero ademas comprueba que los
             # usuarios estan en la sesion
             user_dst = info.split()[1].split(':')[1]
             if user_dst in self.users:
                 self.delete_sesion(user_dst)
                 respuesta = self.reenviar(user_dst, info)
                 self.wfile.write(bytes(respuesta, 'utf-8'))
-                log_mess = 'Sent to ' + self.client_address[0] + ':' 
-                log_mess += str(self.client_address[1]) +': '
+                log_mess = 'Sent to ' + self.client_address[0] + ':'
+                log_mess += str(self.client_address[1]) + ': '
                 log_mess += respuesta.replace('\r\n', ' ')
                 log_writer(log_mess, config)
             else:
@@ -200,8 +208,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         else:
             # envia 405 Method Not Allowed
             self.wfile.write(bytes(method_not_allowed, 'utf-8'))
-            log_mess = 'Sent to ' + self.client_address[0] + ':' 
-            log_mess += str(self.client_address[1]) +': '
+            log_mess = 'Sent to ' + self.client_address[0] + ':'
+            log_mess += str(self.client_address[1]) + ': '
             log_mess += method_not_allowed.replace('\r\n', ' ')
             log_writer(log_mess, config)
             print('Respondido: 405 Method Not Allowed')
@@ -244,22 +252,24 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         puerto_dst = int(self.users[user_dst]['puerto'])
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.connect((ip_dst, puerto_dst))
-            log_mess = 'Sent to ' + ip_dst + ':' + str(puerto_dst) +' :'
+            log_mess = 'Sent to ' + ip_dst + ':' + str(puerto_dst) + ': '
             log_mess += mensaje.replace('\r\n', ' ')
             log_writer(log_mess, config)
             my_socket.send(bytes(mensaje, 'utf-8'))
             try:
                 data = my_socket.recv(1024).decode('utf-8')
-                log_mess = 'Received from ' + ip_dst + ':' + str(puerto_dst) +' :'
+                direccion_cliente = ip_dst + ':' + str(puerto_dst)
+                log_mess = 'Received from ' + direccion_cliente + ': '
                 log_mess += mensaje.replace('\r\n', ' ')
                 log_writer(log_mess, config)
             except ConnexionRefusedError:
                 data = ''
-                log_mess = 'Error: No server listening at' + ip_dst + ' port ' + str(puerto_dst)
+                log_mess = 'Error: No server listening at' + ip_dst
+                log_mess += ' port ' + str(puerto_dst)
                 log_writer(log_mess, config)
         return data
 
-if __name__ =='__main__':
+if __name__ == '__main__':
 
     if len(sys.argv) != 2:
         sys.exit(usage_error)
