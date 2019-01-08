@@ -12,7 +12,9 @@ from xml.sax.handler import ContentHandler
 usage_error = 'usage: python3 uaserver.py <fichero>'
 
 sdp_body = 'Content-Type: application/sdp\r\n\r\nv=0\r\n'
-sdp_body += 'o=username serverip\r\ns=nombresesion\r\nt=0\r\nm=audio puertortp RTP\r\n'
+sdp_body += 'o=username serverip\r\ns=nombresesion\r\nt=0\r\n'
+sdp_body += 'm=audio puertortp RTP\r\n'
+
 
 class XMLHandler(ContentHandler):
 
@@ -44,7 +46,9 @@ class SIPHandler(socketserver.DatagramRequestHandler):
     def handle(self):
 
         info = self.rfile.read().decode('utf-8')
-        direccion_cliente = self.client_address[0] + ':' + str(self.client_address[1])
+        ip = self.client_address[0]
+        port = str(self.client_address[1])
+        direccion_cliente = ip + ':' + port
         log_mess = 'Received from ' + direccion_cliente + ': '
         log_mess += info.replace('\r\n', ' ')
         log_writer(log_mess, config)
@@ -68,8 +72,8 @@ class SIPHandler(socketserver.DatagramRequestHandler):
             log_mess += mensaje.replace('\r\n', ' ')
             log_writer(log_mess, config)
         elif metodo == 'ACK':
-            comando = './mp32rtp -i ' + self.comando[0] + ' -p ' + self.comando[1] + ' < '
-            comando += config['audio_path']
+            comando = './mp32rtp -i ' + self.comando[0] + ' -p '
+            comando += self.comando[1] + ' < ' + config['audio_path']
             print('Ejecutando:', comando)
             os.system(comando)
             self.comando = []
@@ -86,7 +90,7 @@ class SIPHandler(socketserver.DatagramRequestHandler):
             log_mess += 'SIP/2.0 405 Method Not Allowed'
             log_writer(log_mess, config)
 
-if __name__ =='__main__':
+if __name__ == '__main__':
 
     if len(sys.argv) != 2:
         sys.exit(usage_error)
