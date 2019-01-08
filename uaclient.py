@@ -15,12 +15,14 @@ register = 'REGISTER sip:username:serverport SIP/2.0\r\nExpires: opcion\r\n'
 
 digest = 'Authorization: Digest response="digest"\r\n'
 
-invite = 'INVITE sip:opcion SIP/2.0\r\nContent-Type: application/sdp\r\n\r\nv=0\r\n'
-invite += 'o=username serverip\r\ns=nombresesion\r\nt=0\r\nm=audio puertortp RTP\r\n'
+invite = 'INVITE sip:opcion SIP/2.0\r\nContent-Type: application/sdp\r\n\r\n'
+invite += 'v=0\r\no=username serverip\r\ns=nombresesion\r\nt=0\r\n'
+invite += 'm=audio puertortp RTP\r\n'
 
 ack = 'ACK sip:opcion SIP/2.0\r\n'
 
 bye = 'BYE sip:opcion SIP/2.0\r\n'
+
 
 def metodo_register(socket, opcion, log_mess):
     mess = register.replace('username', config['account_username'])
@@ -30,7 +32,8 @@ def metodo_register(socket, opcion, log_mess):
     socket.send(bytes(mess, 'utf-8'))
     log_writer(log_mess + mess.replace('\r\n', ' '), config)
 
-def metodo_register_con_digest(socket, opcion, response, log_mess):
+
+def register_con_digest(socket, opcion, response, log_mess):
     mess = register.replace('username', config['account_username'])
     mess = mess.replace('serverport', config['uaserver_puerto'])
     mess = mess.replace('opcion', opcion)
@@ -38,6 +41,7 @@ def metodo_register_con_digest(socket, opcion, response, log_mess):
     print('Enviando:\n' + mess)
     socket.send(bytes(mess, 'utf-8'))
     log_writer(log_mess + mess.replace('\r\n', ' '), config)
+
 
 def metodo_invite(socket, opcion, log_mess):
     mess = invite.replace('username', config['account_username'])
@@ -49,11 +53,13 @@ def metodo_invite(socket, opcion, log_mess):
     socket.send(bytes(mess, 'utf-8'))
     log_writer(log_mess + mess.replace('\r\n', ' '), config)
 
+
 def metodo_ack(socket, opcion, log_mess):
     mess = ack.replace('opcion', opcion)
     print('Enviando:\n' + mess)
     socket.send(bytes(mess, 'utf-8'))
     log_writer(log_mess + mess.replace('\r\n', ' '), config)
+
 
 def ejecutar_rtp(data):
     ip = data.split('\r\n')[8].split()[-1]
@@ -63,11 +69,13 @@ def ejecutar_rtp(data):
     print('Ejecutando:', mp32rtp)
     os.system(mp32rtp)
 
+
 def metodo_bye(socket, opcion, log_mess):
     mess = bye.replace('opcion', opcion)
     print('Enviando:\n' + mess)
     socket.send(bytes(mess, 'utf-8'))
-    log_writer(log_mess  + mess.replace('\r\n', ' '), config)
+    log_writer(log_mess + mess.replace('\r\n', ' '), config)
+
 
 def recibir_respuesta(socket):
 
@@ -77,6 +85,7 @@ def recibir_respuesta(socket):
         data = ''
 
     return data
+
 
 def trying_ringing_ok(data):
 
@@ -126,13 +135,13 @@ if __name__ == '__main__':
                 if 'SIP/2.0 401 Unauthorized' in respuesta:
                     nonce = respuesta.split('\r\n')[1].split('"')[-2]
                     response = digest_response(nonce, config['account_passwd'])
-                    metodo_register_con_digest(my_socket, opcion, response, sent_mess)
+                    register_con_digest(my_socket, opcion, response, sent_mess)
                     respuesta = recibir_respuesta(my_socket)
                     log_mess = received_mess + respuesta.replace('\r\n', ' ')
                     log_writer(log_mess, config)
                     print('Recibiendo:\n' + respuesta)
             else:
-                log_mess = 'Error: No server listening at ' + ip_proxy 
+                log_mess = 'Error: No server listening at ' + ip_proxy
                 log_mess += ' port ' + str(port_proxy) + ': '
                 log_writer(log_mess, config)
         elif metodo.upper() == 'INVITE':
