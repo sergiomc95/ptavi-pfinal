@@ -122,7 +122,16 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             # registrado, envia un 404 User Not Found, y si el
             # usuario que envia el mensaje no esta registrado,
             # envia un 401 Unauthrized
-            pass
+            user_src = info.split('\r\n')[4].split()[0].split('=')[1]
+            user_dst = info.split('\r\n')[0].split()[1].split(':')[1]
+            sesion_name = info.split('\r\n')[5].split('=')[1]
+            if user_src in self.dicc and user_dst in self.dicc:
+                respuesta = self.reenviar(user_dst, info)
+                if respuesta != '':
+                    self.sesions[sesion_name] = [user_src, user_dst]
+                self.wfile.write(bytes(respuesta, 'utf-8'))
+            else:
+                self.wfile.write(bytes(user_not_found, 'utf-8'))
         elif metodo == 'ACK':
             # igual que el invite
             pass
@@ -136,6 +145,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             print('Respondido: 405 Method Not Allowed')
 
         self.register2json()
+
+    def delete_sesion(self, user_dst):
+        sesions = []
+        for sesion in self.sesions:
+            if user_dst in self.sesions[sesion]:
+                sesions.append(sesion)
+        for sesion in sesions:
+            del self.sesions(sesion)
 
     def register2json(self):
         with open(config['database_path'], "w") as jsonfile:
@@ -158,6 +175,18 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 deleted.append(user)
         for user in deleted:
             del self.users[user]
+
+    def reenviar(self, user_dst, mensaje):
+        ip_dst = self.dicc[user_dst]['ip']
+        port_dst = int(self.dicc[user_dst]['puerto'])
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.connect((ip_dst, port_dst))
+            my_socket.send(bytes(mensaje, 'utf-8'))
+            try:
+                data = my_socket.recv(1024).decode('utf-8')
+            except ConnexionRefusedError:
+                data = ''
+        return data
 
 if __name__ =='__main__':
 
